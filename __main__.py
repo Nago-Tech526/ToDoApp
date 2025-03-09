@@ -1,4 +1,6 @@
 import sys
+import os
+import json
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QListWidget, QListWidgetItem, QTabWidget,
@@ -136,6 +138,31 @@ class TaskListTab(QWidget):
             widget = self.task_list.itemWidget(item)
             if widget and widget.checkbox.isChecked():
                 self.task_list.takeItem(index)
+    
+    def get_tasks(self):
+        # 各タスクの情報をリストとして返す
+        tasks = []
+        for index in range(self.task_list.count()):
+            item = self.task_list.item(index)
+            widget = self.task_list.itemWidget(item)
+            if widget:
+                tasks.append({
+                    "text": widget.label.text(),
+                    "due_date": widget.dateEdit.date().toString("yyyy-MM-dd"),
+                    "completed": widget.checkbox.isChecked()
+                })
+        return tasks
+    
+    def load_tasks(self, tasks):
+        # タスク情報リストからタスクウィジェットを生成
+        for task in tasks:
+            task_widget = TaskWidget(task["text"])
+            task_widget.dateEdit.setDate(QDate.fromString(task["due_date"], "yyyy-MM-dd"))
+            task_widget.checkbox.setChecked(task["completed"])
+            list_item = QListWidgetItem(self.task_list)
+            list_item.setSizeHint(task_widget.sizeHint())
+            self.task_list.addItem(list_item)
+            self.task_list.setItemWidget(list_item, task_widget)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -161,6 +188,9 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.checkDateChange)
         self.timer.start(60000)
 
+        # アプリ起動時にタスクの読み込み
+        self.load_tasks_from_file()
+
     def checkDateChange(self):
         current_date = QDate.currentDate()
         if current_date > self.last_date:
@@ -168,6 +198,30 @@ class MainWindow(QMainWindow):
             self.request_tab.removeCompletedTasks()
             self.backlog_tab.removeCompletedTasks()
             self.last_date = current_date
+
+    def load_tasks_from_file(self):
+        if os.path.exists("tasks.json"):
+            with open("tasks.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if "ToDo" in data:
+                self.todo_tab.load_tasks(data["ToDo"])
+            if "お願いリスト" in data:
+                self.request_tab.load_tasks(data["お願いリスト"])
+            if "Backlog" in data:
+                self.backlog_tab.load_tasks(data["Backlog"])
+
+    def save_tasks_to_file(self):
+        data = {
+            "ToDo": self.todo_tab.get_tasks(),
+            "お願いリスト": self.request_tab.get_tasks(),
+            "Backlog": self.backlog_tab.get_tasks()
+        }
+        with open("tasks.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+    def closeEvent(self, event):
+        self.save_tasks_to_file()
+        event.accept()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
