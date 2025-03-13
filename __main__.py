@@ -171,13 +171,11 @@ class MainWindow(QMainWindow):
         # 常に最前面に表示する
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        # タブウィジェットにより3つの画面を切り替え
+        # タブウィジェットにより2つの画面（ToDo, Backlog）を切り替え
         self.tabs = QTabWidget()
         self.todo_tab = TaskListTab("ToDo")
-        self.request_tab = TaskListTab("お願いリスト")
         self.backlog_tab = TaskListTab("Backlog")
         self.tabs.addTab(self.todo_tab, "ToDo")
-        self.tabs.addTab(self.request_tab, "お願いリスト")
         self.tabs.addTab(self.backlog_tab, "Backlog")
         
         self.setCentralWidget(self.tabs)
@@ -195,7 +193,6 @@ class MainWindow(QMainWindow):
         current_date = QDate.currentDate()
         if current_date > self.last_date:
             self.todo_tab.removeCompletedTasks()
-            self.request_tab.removeCompletedTasks()
             self.backlog_tab.removeCompletedTasks()
             self.last_date = current_date
 
@@ -205,15 +202,12 @@ class MainWindow(QMainWindow):
                 data = json.load(f)
             if "ToDo" in data:
                 self.todo_tab.load_tasks(data["ToDo"])
-            if "お願いリスト" in data:
-                self.request_tab.load_tasks(data["お願いリスト"])
             if "Backlog" in data:
                 self.backlog_tab.load_tasks(data["Backlog"])
 
     def save_tasks_to_file(self):
         data = {
             "ToDo": self.todo_tab.get_tasks(),
-            "お願いリスト": self.request_tab.get_tasks(),
             "Backlog": self.backlog_tab.get_tasks()
         }
         with open("tasks.json", "w", encoding="utf-8") as f:
